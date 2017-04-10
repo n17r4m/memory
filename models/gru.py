@@ -29,17 +29,23 @@ class Learner(object):
     self.n = n                 # number of dimensions in feature vectors
     self.l = l                 # nodes per level
     self.L = options.N         # number of items 
-    self.LL = self.L + 2            #number of items (including start/end markers)
     self.N = options.c         # number of end competitors
+    self.LL = self.L + self.N + 2 # number of items (including start/end markers)
+    self.length = self.LL      # for test api
     self.M = np.zeros(self.n)  # memory trace
+    self.t = options.t         # recall threshold
     self.shuffle_items()
     
     self.model = Sequential()
     self.model.add(Bidirectional(GRU(l, return_sequences=True, stateful=True), batch_input_shape=(1,1,n)))
     #self.model.add(BatchNormalization())
     #self.model.add(Activation('tanh'))
+    #self.model.add(Bidirectional(GRU(l, return_sequences=True, stateful=True)))
+    self.model.add(Bidirectional(GRU(l, stateful=True)))    
+    #self.model.add(Activation('tanh'))
+    #self.model.add(Bidirectional(GRU(l, stateful=True)))
+    #self.model.add(Activation('tanh'))
     #self.model.add(LeakyReLU(alpha=0.2))
-    self.model.add(Bidirectional(GRU(l, stateful=True)))
     #self.model.add(BatchNormalization())
     #self.model.add(LeakyReLU(alpha=0.2))
     #self.model.add(Activation('tanh'))
@@ -49,10 +55,13 @@ class Learner(object):
     self.model.compile(loss='cosine_proximity', optimizer=adam) #mse, #rmsprop
     self.initial_weights = self.model.get_weights()
 
+  def __len__(self):
+    return self.L + 2
+
   def shuffle_items(self):
     self.items = np.random.normal(0, 1.0/self.n, (self.LL, self.n))  # items
     self.x = self.items[0]    # start token
-    self.y = self.items[-1]   # end token
+    self.y = self.items[-(self.N+1)]   # end token
 
   def reset(self, weights=None):
     # https://github.com/fchollet/keras/issues/341
@@ -74,20 +83,11 @@ class Learner(object):
     opts = self.items[j:]
     d = opts.dot(a)
     i = np.argmax(d)
+    t = math.sqrt(a.dot(opts[i]) ** 2)
+    if t < self.t:
+      return None, -1
     return opts[i], i+j
 
-
-  def serial_anticipation(self):
-    r = np.zeros(self.LL)
-    r[0] = 1.0
-    for i in range(self.LL-1):
-      j = i + 1
-      f = self.items[i]
-      g_ = self.probe(f, j)
-      g, i_ = self.deblur(g_, j)
-      if j == i_:
-        r[j] = 1.0
-    return r
 
   def probe(self, f, j):
     g_ = self.model.predict(f.reshape(1,1,self.n))[0]

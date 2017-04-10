@@ -22,6 +22,7 @@ def build_parser():
     parser.add_argument('-n', help='Number of features', default=500, type=int)
     parser.add_argument('-N', help='Number of items', default=7, type=int)
     parser.add_argument('-s', help='Network size (width or # neurons)', default=30, type=int)
+    parser.add_argument('-t', help='threshold for recall', default=0.0, type=float)
     parser.add_argument('-l', help='lambda', default=0.3, type=float)
     parser.add_argument('-d', help='delta', default=0.2, type=float)
     parser.add_argument('-c', help='competitors', default=1, type=int)
